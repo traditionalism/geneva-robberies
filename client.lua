@@ -1,8 +1,11 @@
 local storesToReset = {}
 local storePeds = {}
+local clerksToDelete = {}
+local timeCashMultiplier = { 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.6, 0.6, 0.8, 0.8, 1.0, 1.0, 1.5, 1.5, 2.0, 2.5, 3.0 }
 local helpShownRecently = false
 local closedHelpTextRecentlyShown = false
 local random = math.random
+local floor = math.floor
 local serverId = GetPlayerServerId(PlayerId())
 local name = GetCurrentResourceName()
 local state = LocalPlayer.state
@@ -16,7 +19,7 @@ local function setupStores()
     AddTextEntry('waitForTheCashier', 'Wait for the store clerk to empty the register to get the full amount of cash.')
     AddTextEntry('emptyRegisterManuallyNeeded', 'The store clerk is no longer able to empty the register. Go up to the register the store clerk was using and empty it manually with ~INPUT_CONTEXT~')
     AddTextEntry('takeCash', 'Press ~INPUT_CONTEXT~ to take cash.')
-    AddTextEntry('24/7_storeClosed', '24/7 is closed. Please come back within 5-15 minutes.')
+    AddTextEntry('storeClosed', 'This Convenience Store is closed. It was recently robbed, but will open again soon.')
 
     state:set('inStore', false, false)
     state:set('isRobbing', false, false)
@@ -34,9 +37,6 @@ local function setupStores()
         SetModelAsNoLongerNeeded(store.model)
         SetPedKeepTask(ped, true)
         SetBlockingOfNonTemporaryEvents(ped, true)
-        SetRagdollBlockingFlags(ped, 16)
-        SetPedCanEvasiveDive(ped, false)
-        SetPedFleeAttributes(ped, 1024, true)
         storePeds[#storePeds + 1] = ped
     end
 end
@@ -52,11 +52,9 @@ local function spawnClerk(clerk, coords)
         SetPedPropIndex(ped, 1, random(1, 3), 0, true)
     end
     SetModelAsNoLongerNeeded(clerk)
-    SetPedKeepTask(ped, true)
+    SetPedCombatAttributes(clerk, 46, true)
+    SetPedFleeAttributes(clerk, 0, false)
     SetBlockingOfNonTemporaryEvents(ped, true)
-    SetRagdollBlockingFlags(ped, 16)
-    SetPedCanEvasiveDive(ped, false)
-    SetPedFleeAttributes(ped, 1024, true)
     storePeds[#storePeds + 1] = ped
 end
 
@@ -124,38 +122,60 @@ local function notify(text)
     DrawNotification(false, false)
 end
 
+local function getRobberyResult()
+    local hour = GetClockHours()
+    local hourMath = ((hour * 0.6) + 0.5) * 1000
+    local finalMath = random(floor(hourMath), floor(hourMath + 5000))
+    local cash = floor(finalMath / 8) * (timeCashMultiplier[hour] or 0.1)
+    return floor(finalMath / 2), floor(cash)
+end
+
 local function checkForManualEmpty()
     local plyPed = PlayerPedId()
+    local store = state.currentStore
+    local manualEmptyCoords = Config.stores[store].manualEmptyCoords
     local sleep = 1000
 
     RequestAnimDict('oddjobs@shop_robbery@rob_till')
     repeat Wait(0) until HasAnimDictLoaded('oddjobs@shop_robbery@rob_till')
-
     while state.manualRegisterEmptyNeeded do
         local plyCoords = GetEntityCoords(plyPed)
-        local dist = #(plyCoords - vec3(24.5, -1344.98, 29.5))
+        local dist = #(plyCoords - vec3(manualEmptyCoords.x, manualEmptyCoords.y, manualEmptyCoords.z))
 
-        if dist <= 1.0 then
+        if dist <= 1.3 then
             sleep = 0
             DisplayHelpTextThisFrame('takeCash', true)
 
             if IsControlJustPressed(0, 51) then
-                ClearHelp(true)
-                TaskGoStraightToCoord(plyPed, 24.5, -1344.98, 29.5, 2.0, 2000, 275.16, 0.1)
-                repeat Wait(0) until GetScriptTaskStatus(plyPed, 0x7D8F4411) == 7
+                SetEntityCoords(plyPed, manualEmptyCoords.x, manualEmptyCoords.y, manualEmptyCoords.z, false, false, false, false)
+                SetEntityHeading(plyPed, manualEmptyCoords.w)
                 local _, prevWeapon = GetCurrentPedWeapon(plyPed, true)
                 SetCurrentPedWeapon(plyPed, `WEAPON_UNARMED`, true)
-                FreezeEntityPosition(plyPed, true)
                 ClearPedTasksImmediately(plyPed)
                 DisplayRadar(false)
                 createFirstCamera()
                 createSecondCamera()
-                local registerCoords = GetEntityCoords(GetClosestObjectOfType(plyCoords.x, plyCoords.y, plyCoords.z, 5.0, `prop_till_01`, false, false, false))
+                local timeToTake, pay = getRobberyResult()
                 TaskPlayAnim(plyPed, 'oddjobs@shop_robbery@rob_till', 'enter', 8.0, -8.0, -1, 0, 0.0, false, false, false)
-                CreateModelSwap(registerCoords.x, registerCoords.y, registerCoords.z, 0.5, `prop_till_01`, `prop_till_01_dam`, false)
-                TaskPlayAnim(plyPed, 'oddjobs@shop_robbery@rob_till', 'loop', 8.0, -8.0, 4000, 1, 0.0, false, false, false)
-                Wait(4000)
+                TaskPlayAnim(plyPed, 'oddjobs@shop_robbery@rob_till', 'loop', 8.0, -8.0, timeToTake, 1, 0.0, false, false, false)
+                CreateThread(function()
+                    while IsEntityPlayingAnim(plyPed, 'oddjobs@shop_robbery@rob_till', 'loop', 3) do
+                        local time = GetEntityAnimCurrentTime(plyPed, 'oddjobs@shop_robbery@rob_till', 'loop')
+                        local playSound = time > 0.374 and time <= 0.484 or time > 0.824 and time <= 0.92
+
+                        if playSound then
+                            local soundId = GetSoundId()
+                            PlaySoundFrontend(soundId, 'ROBBERY_MONEY_TOTAL', 'HUD_FRONTEND_CUSTOM_SOUNDSET', true)
+                            ReleaseSoundId(soundId)
+                        end
+
+                        Wait(0)
+                    end
+                end)
+                Wait(timeToTake)
                 TaskPlayAnim(plyPed, 'oddjobs@shop_robbery@rob_till', 'exit', 8.0, -1.5, -1, 0, 0.0, false, false, false)
+                local registerCoords = GetEntityCoords(GetClosestObjectOfType(plyCoords.x, plyCoords.y, plyCoords.z, 5.0, `prop_till_01`, false, false, false))
+                CreateModelSwap(registerCoords.x, registerCoords.y, registerCoords.z, 0.5, `prop_till_01`, `prop_till_01_dam`, false)
                 RemoveAnimDict('oddjobs@shop_robbery@rob_till')
                 SetCamActive(cam2, false)
                 RenderScriptCams(false, false, 3000, true, false)
@@ -167,9 +187,9 @@ local function checkForManualEmpty()
                 DestroyCam(cam2, false)
                 DisplayRadar(true)
                 SetCurrentPedWeapon(plyPed, prevWeapon, true)
-                FreezeEntityPosition(plyPed, false)
-                notify('You have stolen $' .. tostring(random(750, 3000)) .. '.')
+                notify(('~w~You have stolen ~g~$%s~w~.'):format(pay))
                 storesToReset[#storesToReset + 1] = state.currentStore
+                clerksToDelete[#clerksToDelete + 1] = state.storeClerk
             end
         else
             sleep = 1000
@@ -184,9 +204,9 @@ local function checkForClerkLife()
 
     while state.isRobbing do
         if IsPedDeadOrDying(clerk, true) then
-            -- close store after robbery, and add it to the list of stores needing to be re-opened.
             state:set('manualRegisterEmptyNeeded', true, false)
             CreateThread(function()
+                ClearHelp(true)
                 DisplayHelpTextThisFrame('emptyRegisterManuallyNeeded', true)
             end)
             checkForManualEmpty()
@@ -195,6 +215,15 @@ local function checkForClerkLife()
 
         Wait(1000)
     end
+end
+
+local function startNormalRobbery()
+    local plyPed = PlayerPedId()
+    local clerk = state.storeClerk
+
+    RequestAnimDict('mp_am_hold_up')
+    RequestModel(`prop_poly_bag_01`)
+    repeat Wait(0) until HasAnimDictLoaded('mp_am_hold_up') and HasModelLoaded(`prop_poly_bag_01`)
 end
 
 local function cleanup()
@@ -231,7 +260,7 @@ CreateThread(function()
             Entity(state.storeClerk).state:set('beingRobbed', false, false)
         elseif inStore and state.storeClerk and Entity(state.storeClerk).state.beingRobbed and not state.isRobbing and not closedHelpTextRecentlyShown then
             closedHelpTextRecentlyShown = true
-            DisplayHelpTextThisFrame('24/7_storeClosed', true)
+            DisplayHelpTextThisFrame('storeClosed', true)
         end
 
         Wait(1500)
@@ -252,11 +281,14 @@ CreateThread(function()
         for i = 1, #storesToReset do
             local storeCoords, _ = GetInteriorLocationAndNamehash(storesToReset[i])
             ClearArea(storeCoords.x, storeCoords.y, storeCoords.z, 20.0, false, false, false, false)
+            storesToReset[i] = nil
+        end
+
+        for i = 1, #clerksToDelete do
             DeletePed(state.storeClerk)
             storePeds[state.storeClerk] = nil
-            state:set('storeClerk', nil, false)
             spawnClerk(Config.stores[storesToReset[i]].model, Config.stores[storesToReset[i]].clerkCoords)
-            storesToReset[i] = nil
+            clerksToDelete[i] = nil
         end
     end
 end)
@@ -275,33 +307,36 @@ AddStateBagChangeHandler('inStore', ('player:%s'):format(serverId), function(_, 
     if not value then return end
 
     local plyPed = PlayerPedId()
+    local clerk = state.storeClerk
 
     if not helpShownRecently and not IsPedArmed(plyPed, 4) then
         helpShownRecently = true
-
-        local clerk = state.storeClerk
-
-        TaskLookAtEntity(clerk, plyPed, 3000, 2048, 3)
-        if GetEntityModel(clerk) == `mp_m_shopkeep_01` then
-            PlayPedAmbientSpeechWithVoiceNative(clerk, Config.clerkVoiceLines[random(1, #Config.clerkVoiceLines)], getVoiceForClerk(), 'SPEECH_PARAMS_FORCE', true)
-        end
-
         DisplayHelpTextThisFrame('robStore', true)
+    end
+
+    TaskLookAtEntity(clerk, plyPed, 3000, 2048, 3)
+    if GetEntityModel(clerk) == `mp_m_shopkeep_01` then
+        PlayPedAmbientSpeechWithVoiceNative(clerk, Config.clerkVoiceLines[random(1, #Config.clerkVoiceLines)], getVoiceForClerk(), 'SPEECH_PARAMS_FORCE', true)
     end
 end)
 
 AddStateBagChangeHandler('isRobbing', ('player:%s'):format(serverId), function(_, _, value)
     if not value then return end
 
+    local clerk = state.storeClerk
+
     CreateThread(checkForShooting)
     CreateThread(checkForClerkLife)
 
-    if random(0, 100) >= 20 then
+    if random(0, 100) > 0 then
         ---normal robbery
         CreateThread(function()
-            ClearHelp(true)
+            ClearAllHelpMessages()
             DisplayHelpTextThisFrame('waitForTheCashier', true)
         end)
+        StopCurrentPlayingAmbientSpeech(clerk)
+        PlayPedAmbientSpeechWithVoiceNative(clerk, 'SHOP_SCARED', getVoiceForClerk(), 'SPEECH_PARAMS_INTERRUPT_SHOUTED_CRITICAL', true)
+        startNormalRobbery()
     else
         ---fight back
     end
