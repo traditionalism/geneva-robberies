@@ -8,6 +8,15 @@ author 'geneva/traditionalism'
 description '(partially) Authentic GTA5 convenience store robberies for FiveM.'
 repository 'https://github.com/traditionalism/geneva-robberies'
 
+dependency 'ox_lib'
+
+shared_script '@ox_lib/init.lua'
+
+server_scripts {
+    'server.lua',
+    'bridge/**/server.lua'
+}
+
 client_scripts {
     'config.lua',
     'client.lua'
