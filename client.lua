@@ -208,11 +208,11 @@ local function checkForClerkLife()
 end
 
 local function startNormalRobbery()
-    --TriggerServerEvent('geneva-robberies:syncAnimation-s', state.currentStore)
-    local storeClerk = state.storeClerk
+    TriggerServerEvent('geneva-robberies:syncAnimation-s', state.currentStore)
+    local clerk = state.storeClerk
     lib.requestAnimDict('mp_am_hold_up')
-    TaskLookAtEntity(storeClerk, cache.ped, 1000000, 2048, 3)
-    TaskPlayAnim(state.storeClerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
+    TaskLookAtEntity(clerk, cache.ped, 1000000, 2048, 3)
+    TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
     RemoveAnimDict('mp_am_hold_up')
 end
 
@@ -241,8 +241,6 @@ CreateThread(function()
             state:set('currentStore', nil, false)
             state:set('inStore', false, false)
         end
-
-        print(storeState)
 
         if not isRobbing and inStore and cache.weapon and storeClerk and HasEntityClearLosToEntity(storeClerk, cache.ped, 17) and not storeState then
             state:set('isRobbing', true, false)
@@ -280,14 +278,15 @@ AddStateBagChangeHandler('inStore', ('player:%s'):format(serverId), function(_, 
     if not value then return end
 
     local clerk = state.storeClerk
-
-    if not helpShownRecently and not cache.weapon then
+    local ourInterior = GetInteriorFromEntity(cache.ped)
+    local storeState = storesBeingRobbed[ourInterior]
+    if not helpShownRecently and not storeState and not cache.weapon then
         helpShownRecently = true
         DisplayHelpTextThisFrame('robStore', true)
     end
 
     TaskLookAtEntity(clerk, cache.ped, 3000, 2048, 3)
-    if GetEntityModel(clerk) == `mp_m_shopkeep_01` then
+    if GetEntityModel(clerk) == `mp_m_shopkeep_01` and not storeState and not cache.weapon then
         PlayPedAmbientSpeechWithVoiceNative(clerk, Config.clerkVoiceLines[random(1, #Config.clerkVoiceLines)], getVoiceForClerk(), 'SPEECH_PARAMS_FORCE', true)
     end
 end)
@@ -320,6 +319,10 @@ RegisterNetEvent('geneva-robberies:syncAnimation', function(source, interior)
         local clerk = getClerkForStore(interior)
 
         --- sync animation here
+        lib.requestAnimDict('mp_am_hold_up')
+        TaskLookAtEntity(clerk, cache.ped, 1000000, 2048, 3)
+        TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
+        RemoveAnimDict('mp_am_hold_up')
     end
 end)
 

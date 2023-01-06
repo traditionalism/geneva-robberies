@@ -60,6 +60,10 @@ RegisterNetEvent('geneva-robberies:robberyFinished', function(store)
     AddMoney(source, robbery.amount)
 end)
 
+RegisterNetEvent('geneva-robberies:syncAnimation-s', function(store)
+    TriggerClientEvent('geneva-robberies:syncAnimation', -1, source, store)
+end)
+
 CreateThread(function()
     while true do
         Wait(random(300000, 900000))
