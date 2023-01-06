@@ -6,7 +6,6 @@ use_experimental_fxv2_oal 'yes'
 name 'geneva-robberies'
 author 'geneva/traditionalism'
 description '(partially) Authentic GTA5 convenience store robberies for FiveM.'
-repository 'https://github.com/traditionalism/geneva-robberies'
 
 dependency 'ox_lib'
 

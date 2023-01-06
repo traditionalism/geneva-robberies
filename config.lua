@@ -8,6 +8,9 @@ Config = {
         },
         [198401] = { -- davis (grove) ltd
             model = `mp_m_shopkeep_01`, clerkCoords = vec4(-45.88, -1757.60, 29.42, 51.31), manualEmptyCoords = vec4(-46.81, -1758.04, 29.42 - 1.0, 52.01)
+        },
+        [175105] = { -- GOH chumas liquor store
+            model = `mp_m_shopkeep_01`, clerkCoords = vec4(-2965.94, 391.53, 15.04, 82.77), manualEmptyCoords = vec4(-2966.34, 390.85, 15.04 - 1.0, 83.67)
         }
     },
     clerkVoiceLines = {
@@ -24,5 +27,5 @@ Config = {
         `WEAPON_COMBATMG`,
         `WEAPON_SAWNOFFSHOTGUN`,
         `WEAPON_PUMPSHOTGUN`
-    },
+    }
 }
