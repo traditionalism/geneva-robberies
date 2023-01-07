@@ -32,6 +32,7 @@ local function setupStores()
             SetPedPropIndex(ped, 1, random(1, 3), 0, true)
         end
         SetModelAsNoLongerNeeded(store.model)
+        SetPedCombatAttributes(ped, 46, true)
         SetBlockingOfNonTemporaryEvents(ped, true)
         storePeds[#storePeds + 1] = ped
     end
@@ -48,7 +49,6 @@ local function spawnClerk(clerk, coords)
     end
     SetModelAsNoLongerNeeded(clerk)
     SetPedCombatAttributes(ped, 46, true)
-    SetPedFleeAttributes(ped, 0, false)
     SetBlockingOfNonTemporaryEvents(ped, true)
     storePeds[#storePeds + 1] = ped
 end
@@ -194,7 +194,7 @@ local function checkForClerkLife()
     local clerk = state.storeClerk
 
     while state.isRobbing do
-        if IsPedDeadOrDying(clerk, true) or GetEntityHealth(clerk) < 200 then
+        if IsPedDeadOrDying(clerk, true) or GetEntityHealth(clerk) < 200 and not IsPedInMeleeCombat(cache.ped) then
             SetEntityHealth(clerk, 0)
             state:set('manualRegisterEmptyNeeded', true, false)
             CreateThread(function()
