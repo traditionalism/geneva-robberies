@@ -38,7 +38,7 @@ local function setupStores()
 end
 
 local function spawnClerk(clerk, coords)
-    lib.requestModel(store.model)
+    lib.requestModel(clerk)
     local ped = CreatePed(26, clerk, coords.x, coords.y, coords.z, coords.w, true, false)
     if clerk == `mp_m_shopkeep_01` then
         SetPedComponentVariation(ped, 3, random(1, 2), 0, 0)
@@ -47,8 +47,8 @@ local function spawnClerk(clerk, coords)
         SetPedPropIndex(ped, 1, random(1, 3), 0, true)
     end
     SetModelAsNoLongerNeeded(clerk)
-    SetPedCombatAttributes(clerk, 46, true)
-    SetPedFleeAttributes(clerk, 0, false)
+    SetPedCombatAttributes(ped, 46, true)
+    SetPedFleeAttributes(ped, 0, false)
     SetBlockingOfNonTemporaryEvents(ped, true)
     storePeds[#storePeds + 1] = ped
 end
@@ -210,11 +210,11 @@ local function checkForClerkLife()
 end
 
 local function startNormalRobbery()
-    TriggerServerEvent('geneva-robberies:syncAnimation-s', state.currentStore)
     local clerk = state.storeClerk
     lib.requestAnimDict('mp_am_hold_up')
     TaskLookAtEntity(clerk, cache.ped, 1000000, 2048, 3)
     TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
+    TriggerServerEvent('geneva-robberies:syncAnimation-s', state.currentStore)
     RemoveAnimDict('mp_am_hold_up')
 end
 
@@ -322,7 +322,7 @@ RegisterNetEvent('geneva-robberies:syncAnimation', function(source, interior)
 
         --- sync animation here
         lib.requestAnimDict('mp_am_hold_up')
-        TaskLookAtEntity(clerk, cache.ped, 1000000, 2048, 3)
+        TaskLookAtEntity(clerk, GetPlayerPed(GetPlayerFromServerId(source)), 1000000, 2048, 3)
         TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
         RemoveAnimDict('mp_am_hold_up')
     end

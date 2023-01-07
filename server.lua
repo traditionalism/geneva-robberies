@@ -68,8 +68,9 @@ CreateThread(function()
         Wait(random(300000, 900000))
         for i = 1, #storesToReset do
             TriggerClientEvent('geneva-robberies:resetStore', storesToReset[i].source, storesToReset[i].interior)
-            storesToReset[i] = nil
             storesBeingRobbed[storesToReset[i].interior] = nil
+            storesToReset[i] = nil
+            TriggerClientEvent('geneva-robberies:syncRobbedStoresTbl', -1, storesBeingRobbed)
         end
     end
 end)
