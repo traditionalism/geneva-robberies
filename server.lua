@@ -17,7 +17,6 @@ RegisterNetEvent('geneva-robberies:syncAnimation-s', function(interior)
 end)
 
 lib.callback.register('geneva-robberies:robberyStarted', function(source, hour)
-    local source = source
     local time, pay = getRobberyResult(hour)
     ongoingRobberies[source] = {
         startedAt = os.time(),

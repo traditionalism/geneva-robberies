@@ -135,7 +135,6 @@ local function checkForManualEmpty()
                 SetCurrentPedWeapon(cache.ped, `WEAPON_UNARMED`, true)
                 ClearPedTasksImmediately(cache.ped)
                 local inFirstPerson = GetFollowPedCamViewMode() == 4
-                DisplayRadar(false)
                 createFirstCamera()
                 createSecondCamera()
                 local timeToTake, pay = lib.callback.await('geneva-robberies:robberyStarted', false, GetClockHours())
@@ -146,6 +145,10 @@ local function checkForManualEmpty()
                     while playingAnim do
                         local time = GetEntityAnimCurrentTime(cache.ped, 'oddjobs@shop_robbery@rob_till', 'loop')
                         local playMoneySound = time > 0.374 and time <= 0.484 or time > 0.824 and time <= 0.92
+
+                        DisableAllControlActions(0)
+                        HideHudAndRadarThisFrame()
+                        ThefeedHideThisFrame()
 
                         if playMoneySound then
                             local soundId = GetSoundId()
@@ -175,7 +178,6 @@ local function checkForManualEmpty()
                 SetGameplayCamRelativePitch(0.0, 1.0)
                 DestroyCam(cam, false)
                 DestroyCam(cam2, false)
-                DisplayRadar(true)
                 SetCurrentPedWeapon(cache.ped, prevWeapon, true)
                 notify(('You\'ve stolen $%s.'):format(pay))
                 TriggerServerEvent('geneva-robberies:robberyFinished', state.currentStore)
