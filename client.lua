@@ -230,21 +230,30 @@ CreateThread(function()
     while true do
         local ourInterior = GetInteriorFromEntity(cache.ped)
         local inStore = Config.stores[ourInterior]
-        local storeState = storesBeingRobbed[ourInterior]
         local stateInStore = state.inStore
-        local isRobbing = state.isRobbing
-        local storeClerk = state.storeClerk
 
         if not stateInStore and inStore then
             state:set('currentStore', ourInterior, false)
             state:set('storeClerk', getClerkForStore(ourInterior), false)
             state:set('inStore', true, false)
-        elseif stateInStore and not inStore and not isRobbing then
+        elseif stateInStore and not inStore then
             state:set('currentStore', nil, false)
             state:set('inStore', false, false)
         end
 
-        if not isRobbing and inStore and cache.weapon and storeClerk and HasEntityClearLosToEntity(storeClerk, cache.ped, 17) and not storeState then
+        Wait(1500)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        local ourInterior = GetInteriorFromEntity(cache.ped)
+        local inStore = Config.stores[ourInterior]
+        local isRobbing = state.isRobbing
+        local storeClerk = state.storeClerk
+        local storeState = storesBeingRobbed[ourInterior]
+
+        if not isRobbing and inStore and IsPedArmed(cache.ped, 4) and storeClerk and HasEntityClearLosToEntity(storeClerk, cache.ped, 17) and not storeState then
             state:set('isRobbing', true, false)
         elseif isRobbing and not inStore then
             ClearHelp(true)
@@ -282,13 +291,14 @@ AddStateBagChangeHandler('inStore', ('player:%s'):format(serverId), function(_, 
     local clerk = state.storeClerk
     local ourInterior = GetInteriorFromEntity(cache.ped)
     local storeState = storesBeingRobbed[ourInterior]
-    if not helpShownRecently and not storeState and not cache.weapon then
+
+    if not helpShownRecently and not storeState and not IsPedArmed(cache.ped, 4) then
         helpShownRecently = true
         DisplayHelpTextThisFrame('robStore', true)
     end
 
     TaskLookAtEntity(clerk, cache.ped, 3000, 2048, 3)
-    if GetEntityModel(clerk) == `mp_m_shopkeep_01` and not storeState and not cache.weapon then
+    if GetEntityModel(clerk) == `mp_m_shopkeep_01` and not storeState and not IsPedArmed(cache.ped, 4) then
         PlayPedAmbientSpeechWithVoiceNative(clerk, Config.clerkVoiceLines[random(1, #Config.clerkVoiceLines)], getVoiceForClerk(), 'SPEECH_PARAMS_FORCE', true)
     end
 end)
