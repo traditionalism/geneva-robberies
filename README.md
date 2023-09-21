@@ -2,3 +2,6 @@ This project is incredibly unfinished and has bad practices. But I'm thinking ab
 
 # geneva-robberies
  (partially) Authentic GTA5 convenience store robberies for FiveM.
+
+# Preview
+https://youtu.be/bzdgpE5Z8E0
