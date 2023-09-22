@@ -59,5 +59,8 @@ Config = {
         `WEAPON_COMBATMG`,
         `WEAPON_SAWNOFFSHOTGUN`,
         `WEAPON_PUMPSHOTGUN`
-    }
+    },
+
+    logging = true, -- debug logging
+    useFramework = false -- whether or not to add money to player after robbery (three supported frameworks: ND_Core, ESX, QB)
 }

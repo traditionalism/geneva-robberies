@@ -25,12 +25,14 @@ local function setupStores()
     for _, store in pairs(stores) do
         lib.requestModel(store.model)
         local ped = CreatePed(26, store.model, store.clerkCoords.x, store.clerkCoords.y, store.clerkCoords.z, store.clerkCoords.w, false, false)
+
         if store.model == `mp_m_shopkeep_01` then
             SetPedComponentVariation(ped, 3, random(1, 2), 0, 0)
             SetPedComponentVariation(ped, 2, random(1, 3), 0, 0)
             SetPedComponentVariation(ped, 0, random(1, 3), 0, 0)
             SetPedPropIndex(ped, 1, random(1, 3), 0, true)
         end
+
         SetModelAsNoLongerNeeded(store.model)
         SetPedCombatAttributes(ped, 46, true)
         SetBlockingOfNonTemporaryEvents(ped, true)
@@ -41,12 +43,14 @@ end
 local function spawnClerk(clerk, coords)
     lib.requestModel(clerk)
     local ped = CreatePed(26, clerk, coords.x, coords.y, coords.z, coords.w, true, false)
+
     if clerk == `mp_m_shopkeep_01` then
         SetPedComponentVariation(ped, 3, random(1, 2), 0, 0)
         SetPedComponentVariation(ped, 2, random(1, 3), 0, 0)
         SetPedComponentVariation(ped, 0, random(1, 3), 0, 0)
         SetPedPropIndex(ped, 1, random(1, 3), 0, true)
     end
+
     SetModelAsNoLongerNeeded(clerk)
     SetPedCombatAttributes(ped, 46, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
@@ -120,6 +124,7 @@ local function checkForManualEmpty()
 
     lib.requestAnimDict('oddjobs@shop_robbery@rob_till')
     lib.requestModel(`prop_till_01_dam`)
+
     while state.manualRegisterEmptyNeeded do
         local plyCoords = GetEntityCoords(cache.ped)
         local dist = #(plyCoords - vec3(manualEmptyCoords.x, manualEmptyCoords.y, manualEmptyCoords.z))
@@ -214,7 +219,6 @@ local function startNormalRobbery()
     lib.requestAnimDict('mp_am_hold_up')
     TaskLookAtEntity(clerk, cache.ped, 1000000, 2048, 3)
     TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
-    TriggerServerEvent('geneva-robberies:syncAnimation-s', state.currentStore)
     RemoveAnimDict('mp_am_hold_up')
 end
 
@@ -226,59 +230,48 @@ end
 
 CreateThread(setupStores)
 
-CreateThread(function()
-    while true do
-        local ourInterior = GetInteriorFromEntity(cache.ped)
-        local inStore = Config.stores[ourInterior]
-        local stateInStore = state.inStore
+SetInterval(function()
+    local ourInterior = GetInteriorFromEntity(cache.ped)
+    local inStore = Config.stores[ourInterior]
+    local stateInStore = state.inStore
 
-        if not stateInStore and inStore then
-            state:set('currentStore', ourInterior, false)
-            state:set('storeClerk', getClerkForStore(ourInterior), false)
-            state:set('inStore', true, false)
-        elseif stateInStore and not inStore then
-            state:set('currentStore', nil, false)
-            state:set('inStore', false, false)
-        end
-
-        Wait(1500)
+    if not stateInStore and inStore then
+        state:set('currentStore', ourInterior, false)
+        state:set('storeClerk', getClerkForStore(ourInterior), false)
+        state:set('inStore', true, false)
+    elseif stateInStore and not inStore then
+        state:set('currentStore', nil, false)
+        state:set('inStore', false, false)
     end
-end)
+end, 1500)
 
-CreateThread(function()
-    while true do
-        local ourInterior = GetInteriorFromEntity(cache.ped)
-        local inStore = Config.stores[ourInterior]
-        local isRobbing = state.isRobbing
-        local storeClerk = state.storeClerk
-        local storeState = storesBeingRobbed[ourInterior]
+SetInterval(function()
+    local ourInterior = GetInteriorFromEntity(cache.ped)
+    local inStore = Config.stores[ourInterior]
+    local isRobbing = state.isRobbing
+    local storeClerk = state.storeClerk
+    local storeState = storesBeingRobbed[ourInterior]
 
-        if not isRobbing and inStore and IsPedArmed(cache.ped, 4) and storeClerk and HasEntityClearLosToEntity(storeClerk, cache.ped, 17) and not storeState then
-            state:set('isRobbing', true, false)
-        elseif isRobbing and not inStore then
-            ClearHelp(true)
-            notify('You\'ve left the store and aborted the robbery.')
-            state:set('isRobbing', false, false)
-            state:set('inStore', false, false)
-            state:set('manualRegisterEmptyNeeded', false, false)
-            TriggerServerEvent('geneva-robberies:robberyAborted', state.currentStore)
-            state:set('currentStore', nil, false)
-        elseif inStore and not isRobbing and storeState and not closedHelpTextRecentlyShown then
-            closedHelpTextRecentlyShown = true
-            DisplayHelpTextThisFrame('storeClosed', true)
-        end
-
-        Wait(1500)
+    if not isRobbing and inStore and IsPedArmed(cache.ped, 4) and storeClerk and HasEntityClearLosToEntity(storeClerk, cache.ped, 17) and not storeState then
+        state:set('isRobbing', true, false)
+    elseif isRobbing and not inStore then
+        ClearHelp(true)
+        notify('You\'ve left the store and aborted the robbery.')
+        state:set('isRobbing', false, false)
+        state:set('inStore', false, false)
+        state:set('manualRegisterEmptyNeeded', false, false)
+        TriggerServerEvent('geneva-robberies:robberyAborted', state.currentStore)
+        state:set('currentStore', nil, false)
+    elseif inStore and not isRobbing and storeState and not closedHelpTextRecentlyShown then
+        closedHelpTextRecentlyShown = true
+        DisplayHelpTextThisFrame('storeClosed', true)
     end
-end)
+end, 1500)
 
-CreateThread(function()
-    while true do
-        Wait(300000)
-        helpShownRecently = false
-        closedHelpTextRecentlyShown = false
-    end
-end)
+SetInterval(function()
+    helpShownRecently = false
+    closedHelpTextRecentlyShown = false
+end, 300000)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= cache.resource then return end
@@ -326,18 +319,6 @@ AddStateBagChangeHandler('isRobbing', ('player:%s'):format(serverId), function(_
     end
 end)
 
-RegisterNetEvent('geneva-robberies:syncAnimation', function(source, interior)
-    if GetInteriorFromEntity(cache.ped) == interior and cache.serverId ~= source then
-        local clerk = getClerkForStore(interior)
-
-        --- sync animation here
-        lib.requestAnimDict('mp_am_hold_up')
-        TaskLookAtEntity(clerk, GetPlayerPed(GetPlayerFromServerId(source)), 1000000, 2048, 3)
-        TaskPlayAnim(clerk, 'mp_am_hold_up', 'guard_handsup_loop', 4.0, -8.0, -1, 1, 0.0, false, false, false)
-        RemoveAnimDict('mp_am_hold_up')
-    end
-end)
-
 RegisterNetEvent('geneva-robberies:resetStore', function(interior)
     local storeCoords, _ = GetInteriorLocationAndNamehash(interior)
     ClearArea(storeCoords.x, storeCoords.y, storeCoords.z, 20.0, false, false, false, false)
@@ -351,8 +332,3 @@ RegisterNetEvent('geneva-robberies:syncRobbedStoresTbl', function(robbedStores)
     table.wipe(storesBeingRobbed)
     storesBeingRobbed = robbedStores
 end)
-
-RegisterCommand('getinterior', function()
-    local coords = GetEntityCoords(cache.ped)
-    print(GetInteriorAtCoords(coords.x, coords.y, coords.z))
-end, false)

@@ -9,20 +9,30 @@ local function getRobberyResult(hour)
     local hourMath = ((hour * 0.6) + 0.5) * 1000
     local finalMath = random(floor(hourMath), floor(hourMath + 5000))
     local cash = floor(finalMath / 8) * (timeCashMultiplier[hour] or 0.1)
+
     return floor(finalMath / 2), floor(cash)
 end
 
-RegisterNetEvent('geneva-robberies:syncAnimation-s', function(interior)
-    TriggerClientEvent('geneva-robberies:syncAnimation', -1, source, interior)
-end)
+local function markStoreForReset(source, store)
+    storesToReset[#storesToReset + 1] = {
+        source = source,
+        interior = store
+    }
+end
 
 lib.callback.register('geneva-robberies:robberyStarted', function(source, hour)
     local time, pay = getRobberyResult(hour)
+
     ongoingRobberies[source] = {
         startedAt = os.time(),
         amount = pay,
         time = time
     }
+
+    if Config.logging then
+        print(('robbery started by %s (#%s) at hour %s. Pay: %s'):format(GetPlayerName(source), source, hour, pay))
+    end
+
     return time, pay
 end)
 
@@ -39,38 +49,46 @@ RegisterNetEvent('geneva-robberies:doSyncingStuff', function(store)
 end)
 
 RegisterNetEvent('geneva-robberies:robberyAborted', function(store)
-    storesToReset[#storesToReset + 1] = {
-        source = source,
-        interior = store
-    }
+    local source = source
+
+    markStoreForReset(source, store)
+
+    if Config.logging then
+        print(('Robbery aborted by %s (%s)'):format(GetPlayerName(source), source))
+    end
 end)
 
 RegisterNetEvent('geneva-robberies:robberyFinished', function(store)
     local robbery = ongoingRobberies[source]
+    local source = source
+
     if not robbery then return end
+
     if floor((robbery.startedAt + robbery.time) + 0.5) < os.time() then
         ongoingRobberies[source] = nil
         return
     end
-    storesToReset[#storesToReset + 1] = {
-        source = source,
-        interior = store
-    }
-    AddMoney(source, robbery.amount)
+
+    markStoreForReset(source, store)
+
+    if Config.logging then
+        print(('Marking store for reset: %s'):format(store))
+    end
+
+    if Config.useFramework then
+        AddMoney(source, robbery.amount)
+    end
 end)
 
-RegisterNetEvent('geneva-robberies:syncAnimation-s', function(store)
-    TriggerClientEvent('geneva-robberies:syncAnimation', -1, source, store)
-end)
+lib.cron.new(random(1, 2) == 1 and '*/5 * * * *' or '*/15 * * * *', function()
+    if Config.logging and #storesToReset > 0 then
+        print(('Resetting %s stores.'):format(#storesToReset))
+    end
 
-CreateThread(function()
-    while true do
-        Wait(random(300000, 900000))
-        for i = 1, #storesToReset do
-            TriggerClientEvent('geneva-robberies:resetStore', storesToReset[i].source, storesToReset[i].interior)
-            storesBeingRobbed[storesToReset[i].interior] = nil
-            storesToReset[i] = nil
-            TriggerClientEvent('geneva-robberies:syncRobbedStoresTbl', -1, storesBeingRobbed)
-        end
+    for i = 1, #storesToReset do
+        TriggerClientEvent('geneva-robberies:resetStore', storesToReset[i].source, storesToReset[i].interior)
+        storesBeingRobbed[storesToReset[i].interior] = nil
+        storesToReset[i] = nil
+        TriggerClientEvent('geneva-robberies:syncRobbedStoresTbl', -1, storesBeingRobbed)
     end
 end)

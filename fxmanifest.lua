@@ -7,11 +7,9 @@ name 'geneva-robberies'
 author 'geneva/traditionalism'
 description '(partially) Authentic GTA5 convenience store robberies for FiveM.'
 
-shared_script '@ox_lib/init.lua'
-
-escrow_ignore {
-    'config.lua',
-    'bridge/**/server.lua'
+shared_scripts {
+    '@ox_lib/init.lua',
+    'config.lua'
 }
 
 server_scripts {
@@ -19,7 +17,4 @@ server_scripts {
     'bridge/**/server.lua'
 }
 
-client_scripts {
-    'config.lua',
-    'client.lua'
-}
+client_script 'client.lua'
